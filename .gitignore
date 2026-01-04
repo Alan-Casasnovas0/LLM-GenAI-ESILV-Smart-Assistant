@@ -1,0 +1,31 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/
+.streamlit/secrets.toml
+
+# Playwright
+playwright_data/
+.auth/
+.playwright/
+
+# Ollama data
+ollama_data/
+
+# OS files
+.DS_Store
+Thumbs.db
