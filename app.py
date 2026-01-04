@@ -1,15 +1,21 @@
 """
 ESILV Academic Assistant - Streamlit Frontend
-Integrates with ReAct agent for intelligent course search and deadline tracking
+
+Web interface for the ReAct agent that enables students to:
+- Search for courses on De Vinci Moodle
+- Check upcoming assignment deadlines
+- Switch between available LLM models
+- Enter De Vinci credentials
+
+Requires Ollama to be running locally with at least one model installed.
 """
 
 import streamlit as st
 import logging
-import json
 import requests
 from datetime import datetime
-from typing import Optional, Dict, List
-from agent import ReActAgent, llm, SYSTEM_PROMPT, create_llm
+from typing import List
+from agent import ReActAgent, create_llm
 import tools
 
 # Configure logging
@@ -19,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Ollama configuration
 OLLAMA_BASE_URL = "http://localhost:11434"
 
-# Page config
+# Streamlit page configuration
 st.set_page_config(
     page_title="ESILV Academic Assistant",
     page_icon="📚",
@@ -27,7 +33,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS for black on white chat message colors
 st.markdown("""
 <style>
     .stChatMessage {
@@ -52,25 +58,24 @@ def get_available_models(base_url: str = OLLAMA_BASE_URL) -> List[str]:
         response = requests.get(f"{base_url}/api/tags", timeout=10)
         response.raise_for_status()
         data = response.json()
-        # Keep full model names with version tags (e.g., "mistral:latest")
+        # Keep full model names with version tags for proper initialization
         models = [model["name"] for model in data.get("models", [])]
         return models
     except Exception as e:
         logger.error(f"Error fetching models: {e}")
         return []
 
-def get_model_info(base_url: str = OLLAMA_BASE_URL) -> Dict:
-    """Get detailed info about available models"""
-    try:
-        response = requests.get(f"{base_url}/api/tags", timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        logger.error(f"Error fetching model info: {e}")
-        return {"models": []}
 
 def display_ollama_status():
-    """Display Ollama server status in sidebar"""
+    """
+    Display Ollama server status and model selection in the sidebar.
+    
+    Shows:
+    - Server connection status
+    - Available models with a dropdown selector
+    - Model details (size, tags)
+    - Instructions if server is not running
+    """
     st.sidebar.markdown("## 🔌 Server Status")
     
     is_running, error = check_ollama_server()
@@ -86,7 +91,7 @@ def display_ollama_status():
             selected_model = st.sidebar.selectbox(
                 "Choose a model:",
                 options=models,
-                index=models.index(st.session_state.get("selected_model", "mistral")) 
+                index=models.index(st.session_state.get("selected_model", "mistral:latest")) 
                     if st.session_state.get("selected_model") in models else 0,
                 key="model_selector"
             )
@@ -120,11 +125,18 @@ def display_ollama_status():
     return is_running
 
 def display_assistant_info():
-    """Display assistant information and credentials in sidebar"""
+    """
+    Display assistant tools information and credential management in sidebar.
+    
+    Allows students to:
+    - Enter and save De Vinci credentials securely
+    - Learn about available tools
+    - Understand how the agent works
+    """
     st.sidebar.markdown("---")
     st.sidebar.markdown("## 🔐 De Vinci Credentials")
     
-    # Credentials section
+    # Credentials form
     with st.sidebar.form("devinci_credentials"):
         email = st.text_input("Email", placeholder="your.email@edu.devinci.fr", type="default")
         password = st.text_input("Password", placeholder="Your password", type="password")
@@ -159,12 +171,21 @@ def display_assistant_info():
         """)
 
 def initialize_session_state():
-    """Initialize Streamlit session state"""
+    """
+    Initialize all Streamlit session state variables.
+    
+    Creates default values for:
+    - Chat message history
+    - Selected model
+    - ReAct agent instance
+    - UI preferences (show thinking)
+    - De Vinci credentials
+    """
     if "messages" not in st.session_state:
         st.session_state.messages = []
     
     if "selected_model" not in st.session_state:
-        st.session_state.selected_model = "mistral"
+        st.session_state.selected_model = "mistral:latest"
     
     if "agent" not in st.session_state:
         llm_instance = create_llm(st.session_state.selected_model)
@@ -180,7 +201,12 @@ def initialize_session_state():
         st.session_state.devinci_password = None
 
 def display_chat():
-    """Display chat interface"""
+    """
+    Display the chat conversation history.
+    
+    Shows all previous messages with user avatars and thinking process
+    if the "show thinking" toggle is enabled.
+    """
     # Chat container
     chat_container = st.container()
     
@@ -190,14 +216,21 @@ def display_chat():
             with st.chat_message(message["role"], avatar="🧠" if message["role"] == "assistant" else "👤"):
                 st.markdown(message["content"])
                 
-                # Show thinking process if available
+                # Show thinking process if enabled
                 if message["role"] == "assistant" and "thinking" in message:
                     if st.session_state.thinking_visible:
                         with st.expander("🤔 Agent Thinking Process"):
                             st.info(message["thinking"][:500] + "...")
 
 def handle_user_input():
-    """Handle user input and agent response"""
+    """
+    Handle user input from the chat box.
+    
+    1. Collects user input
+    2. Calls the agent
+    3. Stores the response in chat history
+    4. Triggers page rerun to display cleanly
+    """
     # Input section
     st.markdown("---")
     user_input = st.chat_input("Ask about courses or deadlines...")
@@ -226,7 +259,7 @@ def handle_user_input():
                 })
                 
             except Exception as e:
-                error_msg = f"❌ Erreur: {str(e)}"
+                error_msg = f"❌ Error: {str(e)}"
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": error_msg
@@ -237,7 +270,14 @@ def handle_user_input():
         
 
 def display_welcome():
-    """Display welcome message"""
+    """
+    Display welcome message and instructions for first-time users.
+    
+    Shows:
+    - Overview of assistant capabilities
+    - Usage instructions
+    - Example questions
+    """
     st.markdown("""
     # 📚 ESILV Academic Assistant
     
@@ -261,43 +301,48 @@ def display_welcome():
     """)
 
 def main():
-    """Main application"""
+    """
+    Main application entry point.
+    
+    Initializes the Streamlit app with sidebar controls,
+    checks dependencies, and manages the UI flow.
+    """
     # Initialize session state
     initialize_session_state()
     
-    # Sidebar
+    # Sidebar configuration
     with st.sidebar:
         st.title("⚙️ Settings")
         
-        # Display Ollama status
+        # Display Ollama server status and model selection
         server_running = display_ollama_status()
         
         if not server_running:
             st.warning("⚠️ Agent requires Ollama to be running!")
             st.stop()
         
-        # Display assistant info
+        # Display assistant information and credential management
         display_assistant_info()
         
-        # Clear chat button
+        # Chat history management
         st.markdown("---")
         if st.button("🗑️ Clear Chat History", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
         
-        # Toggle thinking visibility
+        # UI preferences
         st.session_state.thinking_visible = st.checkbox(
             "Show thinking process",
             value=st.session_state.thinking_visible
         )
     
-    # Main content
+    # Main content area
     if not st.session_state.messages:
         display_welcome()
     else:
         display_chat()
     
-    # Handle user input
+    # Chat input handling
     handle_user_input()
 
 if __name__ == "__main__":
