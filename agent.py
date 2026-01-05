@@ -88,14 +88,14 @@ class ReActAgent:
         # Step 4: Generate final answer based on tool results
         final_prompt = f"""{SYSTEM_PROMPT}
 
-Student: {user_input}
+                        Student: {user_input}
 
-Your reasoning:
-{thinking_response}
+                        Your reasoning:
+                        {thinking_response}
 
-Tool results:
-"""
-        
+                        Tool results:
+                        """
+                
         for tool_name, result in all_results.items():
             final_prompt += f"\n{tool_name}: {result}"
         

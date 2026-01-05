@@ -101,16 +101,6 @@ By default, the app connects to `http://localhost:11434`. To change this, modify
 ### Updating Selectors
 Moodle updates frequently. If the scraper returns no courses, the CSS selectors in `scraper.py` (specifically inside `get_course_list`) may need to be updated to match the new Moodle layout.
 
-## Recommended Models
-
-Different models offer trade-offs between speed, RAM usage, and intelligence. For this specific task (reasoning + data extraction), the following are recommended:
-
-| Model | Size | RAM | Speed | Notes |
-|-------|------|-----|-------|-------|
-| **Mistral** (7B) | ~4.1 GB | ~8 GB | ⚡ Fast | **Recommended**. Best balance of reasoning capability and speed for tool calling. |
-| Llama3.2:3B | ~2 GB | ~4 GB | ⚡⚡ Fastest | Best for lower RAM systems. Slightly less capable at complex reasoning than Mistral. |
-| Gemma2:9B | ~5.5 GB | ~12 GB | ⚡ Slow | High intelligence, but slower response times and requires more RAM. |
-
 ## Project Structure
 
 ```text
